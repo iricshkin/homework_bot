@@ -56,7 +56,7 @@ def send_message(bot, message):
 def get_api_answer(current_timestamp):
     """Получение данных с API сервиса Практикум.Домашка."""
     timestamp = current_timestamp or int(time.time())
-    # timestamp = 0 #убрать
+    # timestamp = 0  # убрать
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
@@ -66,17 +66,17 @@ def get_api_answer(current_timestamp):
             raise TheAnswerStatusCodeNot200Error(api_error_msg)
         return response.json()
     except requests.exceptions.RequestException as request_error:
-        logging.error(f'Код ответа API: {request_error}')
+        logger.error(f'Код ответа API: {request_error}')
         raise SystemExit(request_error)
     except JSONDecodeError as json_error:
-        logging.error(f'Ошибка полученных данных: {json_error}')
+        logger.error(f'Ошибка полученных данных: {json_error}')
 
 
 def check_response(response):
     """Проверка ответа API на корректность."""
     if response['homeworks'] is None:
         api_error_msg = 'Отсутсвуют ожидаемые ключи в ответе API'
-        logging.error(api_error_msg)
+        logger.error(api_error_msg)
         raise ExpectedKeysError(api_error_msg)
     if response['homeworks'] == []:
         return {}
