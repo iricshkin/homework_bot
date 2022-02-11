@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from exceptions import (
     EmptyValueError,
     ExpectedKeysError,
+    TheAnswerDictOrListError,
     TheAnswerStatusCodeNot200Error,
     UnknownStatusError,
 )
@@ -37,7 +38,10 @@ HOMEWORK_STATUSES = {
 logging.basicConfig(
     level=logging.DEBUG,
     filename='program.log',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format=(
+        '%(asctime)s - %(name)s - %(levelname)s - '
+        '%(funcName)s: %(lineno)s - %(message)s'
+    ),
 )
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
@@ -61,7 +65,10 @@ def get_api_answer(current_timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if response.status_code != 200:
-            api_error_msg = f'Неверный код ответа API: {response.status_code}'
+            api_error_msg = (
+                f'Эндпоинт {ENDPOINT} недоступен. '
+                f'Код ответа API: {response.status_code}'
+            )
             logger.error(api_error_msg)
             raise TheAnswerStatusCodeNot200Error(api_error_msg)
         return response.json()
@@ -69,29 +76,37 @@ def get_api_answer(current_timestamp):
         logger.error(f'Код ответа API: {request_error}')
         raise SystemExit(request_error)
     except JSONDecodeError as json_error:
-        logger.error(f'Ошибка полученных данных: {json_error}')
+        json_error_msf = f'Ошибка полученных данных: {json_error}'
+        logger.error(json_error_msf)
+        raise JSONDecodeError(json_error_msf)
 
 
 def check_response(response):
     """Проверка ответа API на корректность."""
     if response['homeworks'] is None:
-        api_error_msg = 'Отсутсвуют ожидаемые ключи в ответе API'
+        api_error_msg = 'Отсутсвуют ожидаемый ключ "homeworks" в ответе API'
         logger.error(api_error_msg)
         raise ExpectedKeysError(api_error_msg)
     if response['homeworks'] == []:
         return {}
-    # Проверить, что вернулись все ключи ('homework_name' и 'status')
-    return response['homeworks'][0]
+    if type(response['homeworks']) is not list:
+        logger.error('Ответ API имеет не правильное значение')
+        raise TheAnswerDictOrListError(
+            'Ответ API имеет не правильное значение'
+        )
+    return response['homeworks']
+    # return response['homeworks'][0] работает бот, но валятся тесты...
 
 
 def parse_status(homework):
     """Информация о статусе домашней работы."""
-    homework_name = homework.get('homework_name') or None
-    homework_status = homework.get('status')
+    homework_name = homework['homework_name']
+    homework_status = homework['status']
     if homework_name is None:
         name_error_msg = f'Отсутсвует значение homework_name: {homework_name}'
         logger.error(name_error_msg)
         raise EmptyValueError(name_error_msg)
+
     if homework_status is None:
         status_error_msg = f'Отсутсвует значение status: {homework_status}'
         logger.error(status_error_msg)

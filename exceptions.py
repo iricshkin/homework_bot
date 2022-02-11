@@ -12,3 +12,7 @@ class EmptyValueError(Exception):
 
 class TheAnswerStatusCodeNot200Error(Exception):
     """Ответ API не равен 200."""
+
+
+class TheAnswerDictOrListError(Exception):
+    """Ответ API имеет неверный тип данных."""
