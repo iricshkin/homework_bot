@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from exceptions import (
     EmptyValueError,
     ExpectedKeysError,
-    TheAnswerDictOrListError,
+    TheAnswerListError,
     TheAnswerStatusCodeNot200Error,
     UnknownStatusError,
 )
@@ -24,7 +24,6 @@ TELEGRAM_CHAT_ID = os.getenv('CHAT_ID')
 
 
 RETRY_TIME = 600
-# ENDPOINT = 'https://practicum.yandex.ru/api/user_api/'
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -60,7 +59,6 @@ def send_message(bot, message):
 def get_api_answer(current_timestamp):
     """Получение данных с API сервиса Практикум.Домашка."""
     timestamp = current_timestamp or int(time.time())
-    # timestamp = 0  # убрать
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
@@ -84,18 +82,16 @@ def get_api_answer(current_timestamp):
 def check_response(response):
     """Проверка ответа API на корректность."""
     if response['homeworks'] is None:
-        api_error_msg = 'Отсутсвуют ожидаемый ключ "homeworks" в ответе API'
+        api_error_msg = 'Отсутсвует ожидаемый ключ "homeworks" в ответе API'
         logger.error(api_error_msg)
         raise ExpectedKeysError(api_error_msg)
     if response['homeworks'] == []:
         return {}
     if type(response['homeworks']) is not list:
-        logger.error('Ответ API имеет не правильное значение')
-        raise TheAnswerDictOrListError(
-            'Ответ API имеет не правильное значение'
-        )
+        list_error_msg = 'Ответ API имеет неправильное значение'
+        logger.error(list_error_msg)
+        raise TheAnswerListError(list_error_msg)
     return response['homeworks']
-    # return response['homeworks'][0] работает бот, но валятся тесты...
 
 
 def parse_status(homework):
@@ -106,7 +102,6 @@ def parse_status(homework):
         name_error_msg = f'Отсутсвует значение homework_name: {homework_name}'
         logger.error(name_error_msg)
         raise EmptyValueError(name_error_msg)
-
     if homework_status is None:
         status_error_msg = f'Отсутсвует значение status: {homework_status}'
         logger.error(status_error_msg)
@@ -122,20 +117,16 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверка доступности переменных окружения."""
+    ENV_VARS = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
     stop_bot_msg = 'Программа принудительно остановлена.'
     tokens_error_msg = 'Отсутствует обязательная переменная окружения:'
     tokens_status = True
-    if PRACTICUM_TOKEN is None:
-        tokens_status = False
-        logger.critical(f'{tokens_error_msg} PRACTICUM_TOKEN.\n{stop_bot_msg}')
-    if TELEGRAM_TOKEN is None:
-        tokens_status = False
-        logger.critical(f'{tokens_error_msg} TELEGRAM_TOKEN.\n{stop_bot_msg}')
-    if TELEGRAM_CHAT_ID is None:
-        tokens_status = False
-        logger.critical(
-            f'{tokens_error_msg} TELEGRAM_CHAT_ID.\n{stop_bot_msg}'
-        )
+    for var in ENV_VARS:
+        if var is None:
+            tokens_status = False
+            logger.critical(
+                f'{tokens_error_msg} PRACTICUM_TOKEN.\n{stop_bot_msg}'
+            )
     return tokens_status
 
 
