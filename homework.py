@@ -124,9 +124,7 @@ def check_tokens():
     for var in ENV_VARS:
         if var is None:
             tokens_status = False
-            logger.critical(
-                f'{tokens_error_msg} PRACTICUM_TOKEN.\n{stop_bot_msg}'
-            )
+            logger.critical(f'{tokens_error_msg} {var}.\n{stop_bot_msg}')
     return tokens_status
 
 
