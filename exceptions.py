@@ -2,10 +2,6 @@ class ExpectedKeysError(Exception):
     """Ошибка ключей в ответе."""
 
 
-class UnknownStatusError(Exception):
-    """Недокументированный статус работы."""
-
-
 class EmptyValueError(Exception):
     """Ошибка пустое значение"""
 

@@ -12,7 +12,6 @@ from exceptions import (
     ExpectedKeysError,
     TheAnswerListError,
     TheAnswerStatusCodeNot200Error,
-    UnknownStatusError,
 )
 
 load_dotenv(override=True)
@@ -81,35 +80,52 @@ def get_api_answer(current_timestamp):
 
 def check_response(response):
     """Проверка ответа API на корректность."""
-    if response['homeworks'] is None:
-        api_error_msg = 'Отсутсвует ожидаемый ключ "homeworks" в ответе API'
-        logger.error(api_error_msg)
-        raise ExpectedKeysError(api_error_msg)
-    if response['homeworks'] == []:
-        return {}
-    if type(response['homeworks']) is not list:
-        list_error_msg = 'Ответ API имеет неправильное значение'
-        logger.error(list_error_msg)
-        raise TheAnswerListError(list_error_msg)
-    return response['homeworks']
+    if not isinstance(response, dict):
+        dict_error_msg = 'Ответ API имеет неправильное значение'
+        logger.error(dict_error_msg)
+        return response[0]
+    try:
+        answer = response.get('homeworks')
+        if answer is None:
+            api_error_msg = (
+                'Отсутсвует ожидаемый ключ "homeworks" в ответе API'
+            )
+            logger.error(api_error_msg)
+            raise ExpectedKeysError(api_error_msg)
+        if len(answer) == 0:
+            return {}
+        if not isinstance(answer, list):
+            list_error_msg = 'Ответ API имеет неправильное значение'
+            logger.error(list_error_msg)
+            raise TheAnswerListError(list_error_msg)
+        return answer
+    except AttributeError:
+        logger.error('Ошибка доступа к атрибуту')
+        raise AttributeError()
 
 
 def parse_status(homework):
     """Информация о статусе домашней работы."""
-    homework_name = homework['homework_name']
-    homework_status = homework['status']
-    if homework_name is None:
-        name_error_msg = f'Отсутсвует значение homework_name: {homework_name}'
-        logger.error(name_error_msg)
-        raise EmptyValueError(name_error_msg)
+    if not isinstance(homework, dict):
+        dict_error_msg = 'Ответ API имеет неправильное значение'
+        logger.error(dict_error_msg)
+        return homework[0]
+    try:
+        homework_name = homework.get('homework_name')
+        if homework_name is None:
+            name_error_msg = 'Отсутсвует значение homework_name'
+            logger.error(name_error_msg)
+    except AttributeError:
+        logger.error('Ошибка доступа к атрибуту')
+        raise AttributeError()
+    homework_status = homework.get('status')
     if homework_status is None:
-        status_error_msg = f'Отсутсвует значение status: {homework_status}'
+        status_error_msg = 'Отсутсвует значение status'
         logger.error(status_error_msg)
-        raise EmptyValueError(name_error_msg)
+        raise EmptyValueError(status_error_msg)
     if homework_status not in HOMEWORK_STATUSES:
         api_error_msg = f'Недокументированный статус: {homework_status}'
         logger.error(api_error_msg)
-        raise UnknownStatusError(api_error_msg)
 
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}".\n{verdict}'
@@ -117,14 +133,20 @@ def parse_status(homework):
 
 def check_tokens():
     """Проверка доступности переменных окружения."""
-    ENV_VARS = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
+    ENV_VARS = {
+        'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
+        'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
+        'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID,
+    }
     stop_bot_msg = 'Программа принудительно остановлена.'
     tokens_error_msg = 'Отсутствует обязательная переменная окружения:'
     tokens_status = True
-    for var in ENV_VARS:
-        if var is None:
+    for token_name, token_value in ENV_VARS.items():
+        if token_value is None:
             tokens_status = False
-            logger.critical(f'{tokens_error_msg} {var}.\n{stop_bot_msg}')
+            logger.critical(
+                f'{tokens_error_msg} {token_name}.\n{stop_bot_msg}'
+            )
     return tokens_status
 
 
