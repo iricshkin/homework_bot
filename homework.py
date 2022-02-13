@@ -81,9 +81,7 @@ def get_api_answer(current_timestamp):
 def check_response(response):
     """Проверка ответа API на корректность."""
     if not isinstance(response, dict):
-        dict_error_msg = 'Ответ API имеет неправильное значение'
-        logger.error(dict_error_msg)
-        return response[0]
+        response = response[0]
     try:
         answer = response.get('homeworks')
         if answer is None:
@@ -98,34 +96,34 @@ def check_response(response):
             list_error_msg = 'Ответ API имеет неправильное значение'
             logger.error(list_error_msg)
             raise TheAnswerListError(list_error_msg)
-        return answer
+        return answer[0]
     except AttributeError:
         logger.error('Ошибка доступа к атрибуту')
-        raise AttributeError()
+        raise AttributeError('Ошибка доступа к атрибуту')
 
 
 def parse_status(homework):
     """Информация о статусе домашней работы."""
     if not isinstance(homework, dict):
-        dict_error_msg = 'Ответ API имеет неправильное значение'
-        logger.error(dict_error_msg)
-        return homework[0]
+        homework = homework[0]
     try:
         homework_name = homework.get('homework_name')
+        homework_status = homework.get('status')
         if homework_name is None:
             name_error_msg = 'Отсутсвует значение homework_name'
+            homework_name = name_error_msg
             logger.error(name_error_msg)
+        if homework_status is None:
+            status_error_msg = 'Отсутсвует значение status'
+            logger.error(status_error_msg)
+            raise EmptyValueError(status_error_msg)
+        if homework_status not in HOMEWORK_STATUSES:
+            api_error_msg = f'Недокументированный статус: {homework_status}'
+            homework_status = api_error_msg
+            logger.error(api_error_msg)
     except AttributeError:
         logger.error('Ошибка доступа к атрибуту')
-        raise AttributeError()
-    homework_status = homework.get('status')
-    if homework_status is None:
-        status_error_msg = 'Отсутсвует значение status'
-        logger.error(status_error_msg)
-        raise EmptyValueError(status_error_msg)
-    if homework_status not in HOMEWORK_STATUSES:
-        api_error_msg = f'Недокументированный статус: {homework_status}'
-        logger.error(api_error_msg)
+        raise AttributeError('Ошибка доступа к атрибуту')
 
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}".\n{verdict}'
