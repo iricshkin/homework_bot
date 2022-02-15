@@ -187,6 +187,7 @@ def main():
             time.sleep(RETRY_TIME)
         else:
             logger.debug('Программа работает без ошибок!')
+            time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
