@@ -68,6 +68,8 @@ def get_api_answer(current_timestamp):
             )
             logger.error(api_error_msg)
             raise TheAnswerStatusCodeNot200Error(api_error_msg)
+        if not isinstance(response.json(), dict):
+            return response.json()[0]
         return response.json()
     except requests.exceptions.RequestException as request_error:
         logger.error(f'Код ответа API: {request_error}')
@@ -80,10 +82,12 @@ def get_api_answer(current_timestamp):
 
 def check_response(response):
     """Проверка ответа API на корректность."""
-    if not isinstance(response, dict):
-        response = response[0]
     try:
         answer = response.get('homeworks')
+    except AttributeError:
+        logger.error('Ошибка доступа к атрибуту')
+        raise AttributeError('Ошибка доступа к атрибуту')
+    else:
         if answer is None:
             api_error_msg = (
                 'Отсутсвует ожидаемый ключ "homeworks" в ответе API'
@@ -96,22 +100,20 @@ def check_response(response):
             list_error_msg = 'Ответ API имеет неправильное значение'
             logger.error(list_error_msg)
             raise TheAnswerListError(list_error_msg)
-        return answer[0]
-    except AttributeError:
-        logger.error('Ошибка доступа к атрибуту')
-        raise AttributeError('Ошибка доступа к атрибуту')
+        return answer
 
 
 def parse_status(homework):
     """Информация о статусе домашней работы."""
-    if not isinstance(homework, dict):
-        homework = homework[0]
     try:
         homework_name = homework.get('homework_name')
         homework_status = homework.get('status')
+    except AttributeError:
+        logger.error('Ошибка доступа к атрибуту')
+        raise AttributeError('Ошибка доступа к атрибуту')
+    else:
         if homework_name is None:
             name_error_msg = 'Отсутсвует значение homework_name'
-            homework_name = name_error_msg
             logger.error(name_error_msg)
         if homework_status is None:
             status_error_msg = 'Отсутсвует значение status'
@@ -119,11 +121,7 @@ def parse_status(homework):
             raise EmptyValueError(status_error_msg)
         if homework_status not in HOMEWORK_STATUSES:
             api_error_msg = f'Недокументированный статус: {homework_status}'
-            homework_status = api_error_msg
             logger.error(api_error_msg)
-    except AttributeError:
-        logger.error('Ошибка доступа к атрибуту')
-        raise AttributeError('Ошибка доступа к атрибуту')
 
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}".\n{verdict}'
@@ -136,14 +134,13 @@ def check_tokens():
         'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
         'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID,
     }
-    stop_bot_msg = 'Программа принудительно остановлена.'
-    tokens_error_msg = 'Отсутствует обязательная переменная окружения:'
     tokens_status = True
     for token_name, token_value in ENV_VARS.items():
         if token_value is None:
             tokens_status = False
             logger.critical(
-                f'{tokens_error_msg} {token_name}.\n{stop_bot_msg}'
+                f'Отсутствует обязательная переменная окружения: {token_name}.'
+                '\nПрограмма принудительно остановлена.'
             )
     return tokens_status
 
@@ -159,17 +156,19 @@ def main():
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            homework = check_response(response)
-            if homework and current_status != homework['status']:
-                message = parse_status(homework)
-                send_message(bot, message)
-                current_status = homework['status']
+            homeworks = check_response(response)
+            for homework in homeworks:
+                if homework and current_status != homework['status']:
+                    message = parse_status(homework)
+                    send_message(bot, message)
+                    current_status = homework['status']
+                    current_timestamp = response['current_date']
+                    time.sleep(RETRY_TIME)
+                logger.debug(
+                    'Пока изменений нет. Новый запрос через 10 минут.'
+                )
                 current_timestamp = response['current_date']
                 time.sleep(RETRY_TIME)
-            logger.debug('Пока изменений нет. Новый запрос через 10 минут.')
-            current_timestamp = response['current_date']
-            time.sleep(RETRY_TIME)
-
         except KeyboardInterrupt:
             stop_bot = input(
                 'Вы действительно хотите остановить работу бота? Y/N: '
@@ -179,7 +178,6 @@ def main():
                 break
             elif stop_bot in ('N', 'n'):
                 print('Продолжаем работать!')
-
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             if errors:
