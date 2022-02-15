@@ -164,11 +164,9 @@ def main():
                     current_status = homework['status']
                     current_timestamp = response['current_date']
                     time.sleep(RETRY_TIME)
-                logger.debug(
-                    'Пока изменений нет. Новый запрос через 10 минут.'
-                )
-                current_timestamp = response['current_date']
-                time.sleep(RETRY_TIME)
+            logger.debug('Пока изменений нет. Новый запрос через 10 минут.')
+            current_timestamp = response['current_date']
+            time.sleep(RETRY_TIME)
         except KeyboardInterrupt:
             stop_bot = input(
                 'Вы действительно хотите остановить работу бота? Y/N: '
@@ -187,7 +185,6 @@ def main():
             time.sleep(RETRY_TIME)
         else:
             logger.debug('Программа работает без ошибок!')
-            time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
